@@ -7,7 +7,10 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+import { ClerkProvider } from '@clerk/clerk-expo'
+import { Slot } from 'expo-router'
+
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -33,11 +36,13 @@ export default function RootLayout() {
   }
 
   return (
+    <ClerkProvider>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(root)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+    </ClerkProvider>
   );
 }
