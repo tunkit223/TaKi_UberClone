@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { tokenCache } from '@clerk/clerk-expo/token-cache'
 
 
 import { ClerkProvider } from '@clerk/clerk-expo'
@@ -36,7 +37,10 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider>
+    <ClerkProvider 
+    // publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY} 
+    // tokenCache={tokenCache}
+    >
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />

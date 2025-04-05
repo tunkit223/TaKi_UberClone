@@ -8,6 +8,7 @@ import { Image, ScrollView, Text, View, TextInput, TouchableOpacity, Alert } fro
 import * as React from 'react'
 import { useSignUp } from '@clerk/clerk-expo'
 import {ReactNativeModal} from "react-native-modal"
+import { fetchAPI } from "@/lib/fetch"
 const Signup = () =>{
   const [form, setForm] = useState({
     name:"",
@@ -47,15 +48,21 @@ const Signup = () =>{
     if (!isLoaded) return
 
     try {
-      // Use the code the user provided to attempt verification
+    
       const signUpAttempt = await signUp.attemptEmailAddressVerification({
         code: verification.code
       })
 
-      // If verification was completed, set the session to active
-      // and redirect the user
+     
       if (signUpAttempt.status === 'complete') {
-        // TODO: creare a database user
+        await fetchAPI('/(api)/user',{
+          method:"POST",
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            clerkId: signUpAttempt.createdUserId,
+          })
+        })
         await setActive({ session: signUpAttempt.createdSessionId })
         setVerification({
           ...verification,
@@ -123,7 +130,7 @@ const Signup = () =>{
         <OAuth/>
         <Link href="/sign-in" className="text-lg text-center text-general-200 mt-10">
             <Text>Already have an account? </Text>
-            <Text className="text-primary-500">Log In</Text>
+            <Text className="text-primary-500">Sign In</Text>
         </Link>
         </View>
         
@@ -177,7 +184,7 @@ const Signup = () =>{
 
               <CustomButton 
                 title="Browse Home" 
-                onPress={()=>router.replace("/(root)/(tabs)/home")}
+                onPress={()=>router.push("/(root)/(tabs)/home")}
                 className="mt-5"/>
             </View>
        </ReactNativeModal>
