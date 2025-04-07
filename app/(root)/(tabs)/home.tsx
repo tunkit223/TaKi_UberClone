@@ -119,31 +119,59 @@ export default function Page() {
   const [hasPermissions, setHasPermissions] = useState(false)
 
   const handleDestinationPress = () =>{}
-
-  useEffect(()=>{
-    const requestLocation = async ()=>{
-      let {status} = await Location.requestForegroundPermissionsAsync();
-    
-    if(status !== 'granted' ) {
-      setHasPermissions(false)
-      return;
-    }
-    let location = await Location.getCurrentPositionAsync();
+  const fetchAddressFromCoords = async (latitude: number, longitude: number) => {
+    try {
+      const apiKey = "AIzaSyCqx9GILWdiu2_MvDswNt8JB1sn3dy-2-I"; // nhớ thay bằng key của bạn
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}&language=vi`
+      );
+      const data = await response.json();
   
-    const address = await Location.reverseGeocodeAsync({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
-    
-    setUserLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      address: `${address[0].name}, ${address[0].region}`,
-    })
-    
-  }
+      if (data.status === "OK") {
+        const address = data.results[0]?.formatted_address;
+        return address || "Không xác định";
+      } else {
+        console.warn("Reverse Geocoding thất bại:", data.status);
+        return "Không xác định";
+      }
+    } catch (error) {
+      console.error("Lỗi khi reverse geocode:", error);
+      return "Không xác định";
+    }
+  };
+  
+  useEffect(() => {
+    const requestLocation = async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setHasPermissions(false);
+          return;
+        }
+  
+        let location = await Location.getLastKnownPositionAsync();
+        if (!location) {
+          location = await Location.getCurrentPositionAsync();
+        }
+  
+        const { latitude, longitude } = location.coords;
+        console.log("Coords:", latitude, longitude);
+  
+        const address = await fetchAddressFromCoords(latitude, longitude);
+        console.log("Google Address:", address);
+  
+        setUserLocation({
+          latitude,
+          longitude,
+          address,
+        });
+      } catch (error) {
+        console.error("Lỗi khi lấy vị trí:", error);
+      }
+    };
+  
     requestLocation();
-  },[]);
+  }, []);
   
   return (
     <SafeAreaView className='bg-general-500'>

@@ -53,7 +53,7 @@ export const Map =() =>{
     destinationLatitude,
     destinationLongitude,
   } = useLocationStore();
-  
+  console.log('User location:', userLatitude, userLongitude);
   const {selectedDriver, setDrivers} = useDriverStore();
   const [markers, setmarkers] = useState<MarkerData[]>([])
   const region = calculateRegion({
@@ -62,7 +62,7 @@ export const Map =() =>{
     destinationLatitude,
     destinationLongitude,
    })
-   console.log('User location:', userLatitude, userLongitude);
+  
    useEffect(()=>{
     if(Array.isArray(drivers)){
       if(!userLatitude||!userLongitude) return;

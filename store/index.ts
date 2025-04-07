@@ -7,6 +7,7 @@ export const useLocationStore = create<LocationStore>((set)=>({
   destinationLongitude:null,
   destinationLatitude:null,
   destinationAddress:null,
+ 
   setUserLocation:({
     latitude,
     longitude, 
@@ -16,7 +17,7 @@ export const useLocationStore = create<LocationStore>((set)=>({
     longitude:number,
     address:string,
   }) => {
-    console.log("Setting user location:", latitude, longitude, address); // Thêm dòng này
+    console.log('imhere')
       set(()=>({
         userLatitude: latitude,
         userLongitude: longitude,
