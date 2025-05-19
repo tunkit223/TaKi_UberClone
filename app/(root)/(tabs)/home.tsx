@@ -5,11 +5,13 @@ import { SignOutButton } from '@/components/SignOutButton'
 import { icons, images } from '@/constant'
 import { useLocationStore } from '@/store'
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-expo'
-import { Link } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { Link, router } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Location from "expo-location"
+import { GoongTextInput } from '@/components/GoongTextInput'
+import { Router } from 'expo-router'
 const recentRides =
   [
     {
@@ -118,7 +120,18 @@ export default function Page() {
 
   const [hasPermissions, setHasPermissions] = useState(false)
 
-  const handleDestinationPress = () =>{}
+
+
+  const handleDestinationPress = (
+    location:{
+      latitude: number, 
+      longitude: number,
+      address: string,
+    }) =>{
+    setDestinationLocation(location);
+
+    router.push("/(root)/find-ride");
+    }
   const fetchAddressFromCoords = async (latitude: number, longitude: number) => {
     try {
       const apiKey = "AIzaSyCqx9GILWdiu2_MvDswNt8JB1sn3dy-2-I"; // nhớ thay bằng key của bạn
@@ -140,38 +153,59 @@ export default function Page() {
     }
   };
   
-  useEffect(() => {
-    const requestLocation = async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setHasPermissions(false);
-          return;
-        }
-  
-        let location = await Location.getLastKnownPositionAsync();
-        if (!location) {
-          location = await Location.getCurrentPositionAsync();
-        }
-  
-        const { latitude, longitude } = location.coords;
-        console.log("Coords:", latitude, longitude);
-  
-        const address = await fetchAddressFromCoords(latitude, longitude);
-        console.log("Google Address:", address);
-  
-        setUserLocation({
-          latitude,
-          longitude,
-          address,
-        });
-      } catch (error) {
-        console.error("Lỗi khi lấy vị trí:", error);
+
+const fetchAddressFromCoordsWithGoong = async (latitude: number, longitude: number) => {
+  try {
+    const apiKey = process.env.EXPO_PUBLIC_GOONGMAP_API_KEY!; // Thay bằng API key thực của bạn
+    const response = await fetch(
+      `https://rsapi.goong.io/Geocode?latlng=${latitude},${longitude}&api_key=${apiKey}`
+    );
+    const data = await response.json();
+
+    if (data?.results?.length > 0) {
+      return data.results[0].formatted_address;
+    } else {
+      return "Không xác định (Goong)";
+    }
+  } catch (error) {
+    console.error("Lỗi khi reverse geocode với Goong:", error);
+    return "Không xác định";
+  }
+};
+
+
+
+useEffect(() => {
+  (async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setHasPermissions(false);
+        return;
       }
-    };
-  
-    requestLocation();
-  }, []);
+
+      let location = await Location.getCurrentPositionAsync({});
+      if (!location?.coords) return;
+
+      const { latitude, longitude } = location.coords;
+
+      console.log("User location:", latitude, longitude);
+
+      // ✅ Sử dụng Goong để reverse geocode
+      const address = await fetchAddressFromCoordsWithGoong(latitude, longitude);
+
+      setUserLocation({
+        latitude,
+        longitude,
+        address,
+      });
+    } catch (error) {
+      console.error("Lỗi khi lấy vị trí:", error);
+    }
+  })();
+}, []);
+
+
   
   return (
     <SafeAreaView className='bg-general-500'>
@@ -207,18 +241,18 @@ export default function Page() {
               <SignOutButton />
             </View>
 
-             <GoogleTextInput
-                icon={icons.search}
-                containerStyle="bg-white shadow-sm shadow-neutral-300"
-                handlePress={handleDestinationPress}
-             />
+             <GoongTextInput
+              icon={icons.search}
+              containerStyle="bg-white shadow-sm shadow-neutral-300"
+              handlePress={handleDestinationPress}
+            />
 
              <>
               <Text className='text-xl font-JakartaBold mt-5 mb-3'>
                 Your Current Location
               </Text>
               <View className='bg-transparent h-[300px]'>
-              <Map/> 
+              <Map/>
               </View>
               
              </>
