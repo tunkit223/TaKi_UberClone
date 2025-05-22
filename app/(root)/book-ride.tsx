@@ -5,20 +5,30 @@ import RideLayout from "@/components/RideLayout";
 import {icons} from "@/constant";
 import {formatTime} from "@/lib/utils";
 import {useDriverStore, useLocationStore} from "@/store";
+import Payment from "@/components/Payment";
+
+
+import { StripeProvider } from '@stripe/stripe-react-native';
+
+
 
 const BookRide = () => {
     const {user} = useUser();
     const {userAddress, destinationAddress} = useLocationStore();
     const {drivers, selectedDriver} = useDriverStore();
 
-    console.log({drivers})
-    console.log({selectedDriver})
+
 
     const driverDetails = drivers?.filter(
         (driver) => +driver.id === selectedDriver,
     )[0];
 
     return (
+        <StripeProvider
+        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!} // required
+        merchantIdentifier="merchant.identifier" // required for Apple Pay
+        urlScheme="your-url-scheme" // required for 3D Secure and bank redirects
+        >
         <RideLayout title="Book Ride">
             <>
                 <Text className="text-xl font-JakartaSemiBold mb-3">
@@ -89,8 +99,17 @@ const BookRide = () => {
                         </Text>
                     </View>
                 </View>
+
+                <Payment
+                    fullName={user?.fullName!}
+                    email={user?.emailAddresses[0].emailAddress!}
+                    amount={driverDetails?.price!}
+                    driverId={driverDetails?.id!}
+                    rideTime={driverDetails?.time!}
+                />
             </>
         </RideLayout>
+        </StripeProvider>
     );
 };
 
