@@ -1,6 +1,6 @@
 import { Driver, MarkerData } from "@/type/type";
 
-const directionsAPI = process.env.EXPO_PUBLIC_DIRECTIONS_API_KEY;
+const GOONG_API_KEY = `${process.env.EXPO_PUBLIC_GOONGMAP_API_KEY}`;
 
 export const generateMarkersFromData = ({
   data,
@@ -95,21 +95,23 @@ export const calculateDriverTimes = async ({
 
   try {
     const timesPromises = markers.map(async (marker) => {
-      const responseToUser = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${marker.latitude},${marker.longitude}&destination=${userLatitude},${userLongitude}&key=${directionsAPI}`,
+      // Gọi API Goong Directions từ tài xế tới người dùng
+      const resToUser = await fetch(
+        `https://rsapi.goong.io/Direction?origin=${marker.latitude},${marker.longitude}&destination=${userLatitude},${userLongitude}&vehicle=car&api_key=${GOONG_API_KEY}`
       );
-      const dataToUser = await responseToUser.json();
-      const timeToUser = dataToUser.routes[0].legs[0].duration.value; // Time in seconds
+      const dataToUser = await resToUser.json();
+      const timeToUser = dataToUser.routes?.[0]?.legs?.[0]?.duration?.value || 0;
 
-      const responseToDestination = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&key=${directionsAPI}`,
+      // Gọi API Goong Directions từ người dùng tới điểm đến
+      const resToDestination = await fetch(
+        `https://rsapi.goong.io/Direction?origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&vehicle=car&api_key=${GOONG_API_KEY}`
       );
-      const dataToDestination = await responseToDestination.json();
+      const dataToDestination = await resToDestination.json();
       const timeToDestination =
-        dataToDestination.routes[0].legs[0].duration.value; // Time in seconds
+        dataToDestination.routes?.[0]?.legs?.[0]?.duration?.value || 0;
 
-      const totalTime = (timeToUser + timeToDestination) / 60; // Total time in minutes
-      const price = (totalTime * 0.5).toFixed(2); // Calculate price based on time
+      const totalTime = (timeToUser + timeToDestination) / 60; // tổng thời gian (phút)
+      const price = (totalTime * 0.5).toFixed(2); // đơn giá theo thời gian
 
       return { ...marker, time: totalTime, price };
     });

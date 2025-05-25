@@ -1,7 +1,7 @@
 import { icons } from "@/constant";
 import { GoogleInputProps } from "@/type/type";
 import axios from "axios";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   View,
   TextInput,
@@ -22,58 +22,63 @@ export const GoongTextInput = ({
 }: GoogleInputProps) => {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchSuggestions = async (text: string) => {
+  const fetchSuggestions = (text: string) => {
     setQuery(text);
-    if (!text) {
-      setSuggestions([]);
-      return;
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
-    try {
-      const res = await axios.get(
-        `https://rsapi.goong.io/Place/AutoComplete`,
-        {
+
+    debounceRef.current = setTimeout(async () => {
+      if (!text) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const res = await axios.get(`https://rsapi.goong.io/Place/AutoComplete`, {
           params: {
             api_key: GOONG_API_KEY,
             input: text,
           },
-        }
-      );
-      setSuggestions(res.data.predictions);
-    } catch (error) {
-      console.error("Lỗi lấy gợi ý từ Goong:", error);
-    }
+        });
+        setSuggestions(res.data.predictions);
+      } catch (error) {
+        console.error("Lỗi lấy gợi ý từ Goong:", error);
+      }
+    }, 500); 
   };
 
   const handleSelectPlace = async (placeId: string, description: string) => {
     try {
-      const res = await axios.get(
-        `https://rsapi.goong.io/Place/Detail`,
-        {
-          params: {
-            api_key: GOONG_API_KEY,
-            place_id: placeId,
-          },
-        }
-      );
-
-      const { lat, lng } = res.data.result.geometry.location;
-      handlePress({
-        latitude: lat,
-        longitude: lng,
-        address: description,
+      const res = await axios.get(`https://rsapi.goong.io/Place/Detail`, {
+        params: {
+          api_key: GOONG_API_KEY,
+          place_id: placeId,
+        },
       });
-      setSuggestions([]);
-      setQuery(description);
+      
+      const { lat, lng } = res.data?.result?.geometry?.location || {};
+      
+      if (lat && lng) {
+        handlePress({
+          latitude: lat,
+          longitude: lng,
+          address: description,
+        });
+        setSuggestions([]);
+        setQuery(description);
+      } else {
+        console.warn("Không lấy được toạ độ từ địa điểm.");
+      }
     } catch (error) {
       console.error("Lỗi khi lấy chi tiết địa điểm:", error);
     }
   };
 
   return (
-    <View
-      className={`relative z-50 rounded-xl ${containerStyle} mb-5`}
-    >
+    <View className={`relative z-50 rounded-xl ${containerStyle} mb-5`}>
       <View className="flex flex-row items-center bg-white px-4 py-2 rounded-full shadow-sm shadow-neutral-300 mx-5">
         <Image
           source={icon ?? icons.search}
@@ -89,6 +94,7 @@ export const GoongTextInput = ({
           style={{
             backgroundColor: textInputBackgroundColor ?? "white",
           }}
+         
         />
       </View>
 

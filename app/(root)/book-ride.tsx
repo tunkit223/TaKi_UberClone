@@ -71,7 +71,7 @@ const BookRide = () => {
                     <View className="flex flex-row items-center justify-between w-full border-b border-white py-3">
                         <Text className="text-lg font-JakartaRegular">Pickup Time</Text>
                         <Text className="text-lg font-JakartaRegular">
-                            {formatTime(driverDetails?.time!)}
+                            {formatTime(parseInt((`${driverDetails?.time}`!)))}
                         </Text>
                     </View>
 
@@ -104,7 +104,7 @@ const BookRide = () => {
                     fullName={user?.fullName!}
                     email={user?.emailAddresses[0].emailAddress!}
                     amount={driverDetails?.price!}
-                    driverId={driverDetails?.id!}
+                    driverId={driverDetails?.id}
                     rideTime={driverDetails?.time!}
                 />
             </>
