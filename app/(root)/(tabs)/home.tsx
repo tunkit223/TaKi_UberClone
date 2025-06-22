@@ -21,7 +21,28 @@ export default function Page() {
   const {data:recentRides,loading} = useFetch(`/(api)/ride/${user?.id}`)
   const [hasPermissions, setHasPermissions] = useState(false)
 
+  const [role, setRole] = useState<string | null>(null);
 
+useEffect(() => {
+  const fetchUserRole = async () => {
+    try {
+      if (!user?.id) return;
+
+      const response = await fetch(`/(api)/user/${user.id}/role`);
+      const data = await response.json();
+
+      if (response.ok && data?.role) {
+        setRole(data.role);
+      } else {
+        console.warn("Không tìm thấy role của người dùng.");
+      }
+    } catch (err) {
+      console.error("Lỗi khi fetch role:", err);
+    }
+  };
+
+  fetchUserRole();
+}, [user?.id]);
 
   const handleDestinationPress = (
     location:{
@@ -123,11 +144,13 @@ useEffect(() => {
               <SignOutButton />
             </View>
 
-             <GoongTextInput
-              icon={icons.search}
-              containerStyle="bg-white shadow-sm shadow-neutral-300"
-              handlePress={handleDestinationPress}
-            />
+             {role === "user" && (
+              <GoongTextInput
+                icon={icons.search}
+                containerStyle="bg-white shadow-sm shadow-neutral-300"
+                handlePress={handleDestinationPress}
+              />
+            )}
 
              <>
               <Text className='text-xl font-JakartaBold mt-5 mb-3'>

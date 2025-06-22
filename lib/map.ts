@@ -121,3 +121,42 @@ export const calculateDriverTimes = async ({
     console.error("Error calculating driver times:", error);
   }
 };
+
+
+export const calculateTripTimeAndFare = async ({
+  userLatitude,
+  userLongitude,
+  destinationLatitude,
+  destinationLongitude,
+}: {
+  userLatitude: number | null;
+  userLongitude: number | null;
+  destinationLatitude: number | null;
+  destinationLongitude: number | null;
+}) => {
+  if (
+    !userLatitude ||
+    !userLongitude ||
+    !destinationLatitude ||
+    !destinationLongitude
+  ) return;
+
+  try {
+    
+    const res = await fetch(
+      `https://rsapi.goong.io/Direction?origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&vehicle=car&api_key=${GOONG_API_KEY}`
+    );
+
+    const data = await res.json();
+    const timeInSeconds = data.routes?.[0]?.legs?.[0]?.duration?.value || 0;
+    const timeInMinutes = timeInSeconds / 60;
+    const price = (timeInMinutes * 0.5).toFixed(2); // có thể tùy chỉnh giá
+
+    return {
+      time: timeInMinutes,
+      price,
+    };
+  } catch (error) {
+    console.error("Error calculating trip time and fare:", error);
+  }
+};

@@ -13,7 +13,8 @@ const Signup = () =>{
   const [form, setForm] = useState({
     name:"",
     email:"",
-    password:""
+    password:"",
+    role: "user",
   })
   const { isLoaded, signUp, setActive } = useSignUp()
   const [verification, setVerification] = useState({
@@ -61,6 +62,7 @@ const Signup = () =>{
             name: form.name,
             email: form.email,
             clerkId: signUpAttempt.createdUserId,
+            role: form.role,
           })
         })
         await setActive({ session: signUpAttempt.createdSessionId })
@@ -126,6 +128,23 @@ const Signup = () =>{
               password:value,
             })}
           />
+          <View className="flex-row justify-center space-x-5 mt-4">
+            <TouchableOpacity
+              onPress={() => setForm({ ...form, role: "user" })}
+              className="flex-row items-center space-x-2 mr-10"
+            >
+              <View className={`w-5 h-5 rounded-full border ${form.role === 'user' ? 'bg-primary-500 border-gray-400' : 'border-gray-400'}`} />
+              <Text className="text-base">User</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setForm({ ...form, role: "driver" })}
+              className="flex-row items-center space-x-2"
+            >
+              <View className={`w-5 h-5 rounded-full border ${form.role === 'driver' ? 'bg-primary-500 border-gray-400' : 'border-gray-400'}`} />
+              <Text className="text-base">Driver</Text>
+            </TouchableOpacity>
+          </View>
           <CustomButton title="Sign Up" onPress={onSignUpPress} className="mt-6"/>
         <OAuth/>
         <Link href="/sign-in" className="text-lg text-center text-general-200 mt-10">

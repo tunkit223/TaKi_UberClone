@@ -9,7 +9,7 @@ import { View,Text, FlatList } from "react-native";
 const ConfirmRide = () => {
 
   const {drivers, selectedDriver, setSelectedDriver} = useDriverStore();
-  console.log("im here and i cant see any drivers",drivers)
+
   return(
     <RideLayout title="Choose a driver">
       <FlatList 
