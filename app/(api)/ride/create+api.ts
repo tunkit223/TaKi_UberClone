@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       ) RETURNING *;
     `;
     console.log("After booking", booking);
-    return Response.json({ data: ride, booking }, { status: 201 });
+    return Response.json({ ride, booking }, { status: 201 });
   } catch (error) {
     console.error("Error inserting ride and booking:", error);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });

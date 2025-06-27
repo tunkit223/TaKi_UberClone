@@ -44,7 +44,6 @@ export async function PUT(request: Request, { id }: { id: string }) {
           driver_id = ${driver.id}
       WHERE id = ${id}
     `;
-
     return Response.json({
       rideId: booking.ride_id,
       message: "Booking confirmed successfully",

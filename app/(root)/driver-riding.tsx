@@ -1,53 +1,103 @@
 import { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, TouchableOpacity, Alert, Linking, ActivityIndicator, Image, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapDriver } from '@/components/Map-driver';
 import { icons } from '@/constant';
-
+export interface Ride {
+  id: number;
+  user_id: number;
+  origin_address: string;
+  destination_address: string;
+  origin_latitude: number;
+  origin_longitude: number;
+  destination_latitude: number;
+  destination_longitude: number;
+  ride_time: number | null;
+  fare_price: number;
+  payment_status: 'unpaid' | 'paid';
+  status: 'waiting' | 'ongoing' | 'done';
+  created_at: string; // ISO string format from TIMESTAMP
+}
+export interface RideWithUser extends Ride {
+  user_name: string;
+  user_phone: string;
+  profile_image_url?: string | null;
+}
 const DriverRiding = () => {
   const router = useRouter();
   const { rideId } = useLocalSearchParams();
 
-  const [ride, setRide] = useState(null);
+  const [ride, setRide] = useState<RideWithUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasStartedRide, setHasStartedRide] = useState(false);
 
   const fetchRideDetails = async () => {
     try {
-     
-        const res = await fetch(`/(api)/ride/${rideId}/ride_user`);
+      const res = await fetch(`/(api)/ride/${rideId}/ride_user`);
       const data = await res.json();
-  
+
       if (res.ok) {
         setRide(data);
+        setHasStartedRide(data.status === 'ongoing');
       } else {
-        Alert.alert('Lỗi', data.error || 'Không tìm thấy chuyến đi');
+        Alert.alert('Error', data.error || 'Ride not found');
       }
     } catch (err) {
-      console.error('Lỗi khi fetch ride:', err);
-      Alert.alert('Lỗi', 'Không thể lấy thông tin chuyến đi');
+      console.error('Error fetching ride:', err);
+      Alert.alert('Error', 'Failed to retrieve ride information');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFinishRide = async () => {
+  const handleStartRide = async () => {
     try {
-      const res = await fetch(`/api/ride/${rideId}/complete`, {
+      const res = await fetch(`/(api)/ride/${rideId}/ongoing`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_method: 'cash' }),
+        body: JSON.stringify({ rideId }),
       });
 
       if (res.ok) {
-        Alert.alert('Thành công', 'Chuyến đi đã được hoàn thành');
-        // router.replace("/(root)/driver-home");
+        Alert.alert('Ride Started', 'You have picked up the passenger and started the trip');
+        setHasStartedRide(true);
       } else {
-        const err = await res.json();
-        Alert.alert('Lỗi', err.message || 'Không thể hoàn thành chuyến đi');
+        const data = await res.json();
+        Alert.alert('Error', data.error || 'Unable to start the ride');
       }
     } catch (err) {
-      console.error('Lỗi khi hoàn thành chuyến đi:', err);
-      Alert.alert('Lỗi', 'Có lỗi xảy ra, vui lòng thử lại');
+      console.error('Error starting ride:', err);
+      Alert.alert('Error', 'Something went wrong, please try again');
+    }
+  };
+
+  const handleFinishRide = async () => {
+    try {
+      const res = await fetch(`/(api)/ride/${rideId}/complete_ride`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId }),
+      });
+
+      if (res.ok) {
+        Alert.alert('Success', 'Ride has been completed');
+        router.push('/(root)/(tabs)/home');
+      } else {
+        Alert.alert('Error', 'Unable to complete the ride');
+      }
+    } catch (err) {
+      console.error('Error finishing ride:', err);
+      Alert.alert('Error', 'Something went wrong, please try again');
     }
   };
 
@@ -55,23 +105,21 @@ const DriverRiding = () => {
     if (rideId) fetchRideDetails();
   }, [rideId]);
 
-  if (!rideId) return <Text className="text-center mt-10">Không có rideId</Text>;
-  if (loading || !ride) return <ActivityIndicator className="mt-10" size="large" color="#00cc99" />;
+  if (!rideId) return <Text className="text-center mt-10">Missing rideId</Text>;
+  if (loading || !ride)
+    return <ActivityIndicator className="mt-10" size="large" color="#00cc99" />;
 
   return (
-     <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white">
       <View className="flex-[8]">
         <MapDriver rideId={+rideId} />
       </View>
 
-      {/* Thông tin người dùng & chuyến đi */}
       <ScrollView className="p-4 bg-white border-t border-gray-200">
         <View className="flex-row items-center gap-4 mb-4">
           <Image
             source={
-              ride.profile_image_url
-                ? { uri: ride.profile_image_url }
-                : icons.person
+              ride.profile_image_url ? { uri: ride.profile_image_url } : icons.person
             }
             className="w-14 h-14 rounded-full border border-gray-300"
           />
@@ -84,23 +132,39 @@ const DriverRiding = () => {
         </View>
 
         <View className="space-y-1">
-          <Text className="text-base text-gray-700">🏁 <Text className="font-semibold">Điểm đón:</Text> {ride.origin_address}</Text>
-          <Text className="text-base text-gray-700">📍 <Text className="font-semibold">Điểm đến:</Text> {ride.destination_address}</Text>
-          <Text className="text-base text-gray-700">💵 <Text className="font-semibold">Giá:</Text> {ride.fare_price?.toLocaleString()}$</Text>
-          <Text className="text-base text-gray-700">🚦 <Text className="font-semibold">Trạng thái:</Text> {ride.status === 'ongoing' ? 'Đang di chuyển' : ride.status}</Text>
+          <Text className="text-base text-gray-700">
+            🏁 <Text className="font-semibold">Pickup:</Text> {ride.origin_address}
+          </Text>
+          <Text className="text-base text-gray-700">
+            📍 <Text className="font-semibold">Destination:</Text> {ride.destination_address}
+          </Text>
+          <Text className="text-base text-gray-700">
+            💵 <Text className="font-semibold">Fare:</Text> {ride.fare_price?.toLocaleString()}$
+          </Text>
+          <Text className="text-base text-gray-700">
+            🚦 <Text className="font-semibold">Status:</Text>{' '}
+            {ride.status === 'ongoing' ? 'In Progress' : ride.status}
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Nút kết thúc chuyến đi */}
+      {/* Ride action buttons */}
       <View className="bg-white p-5 border-t border-gray-200">
-        <TouchableOpacity
-          onPress={handleFinishRide}
-          className="bg-green-600 py-4 rounded-full items-center justify-center shadow-md"
-        >
-          <Text className="text-white font-bold text-lg">
-            ✅ Kết thúc & thu tiền mặt
-          </Text>
-        </TouchableOpacity>
+        {!hasStartedRide ? (
+          <TouchableOpacity
+            onPress={handleStartRide}
+            className="bg-blue-600 py-4 rounded-full items-center justify-center shadow-md"
+          >
+            <Text className="text-white font-bold text-lg">🚗 Picked Up & Start Ride</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={handleFinishRide}
+            className="bg-green-600 py-4 rounded-full items-center justify-center shadow-md"
+          >
+            <Text className="text-white font-bold text-lg">✅ Finish & Collect Cash</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );

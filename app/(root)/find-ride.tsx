@@ -31,12 +31,7 @@ const FindRide = () => {
     }
 
     try {
-       console.log("Input:", {
-        userLatitude,
-        userLongitude,
-        destinationLatitude,
-        destinationLongitude,
-      });
+     
       const result = await calculateTripTimeAndFare({
         userLatitude: userLatitude,
         userLongitude: userLongitude,
@@ -47,10 +42,10 @@ const FindRide = () => {
       if (!result) throw new Error("Không tính được thời gian hoặc giá tiền");
 
       const { time, price } = result;
-      console.log("userId:", user.id);
+   
       const response = await fetch(`/(api)/user/${user.id}/id`);
       const data = await response.json();
-      console.log("User role data:", data);
+
       const res =  await fetchAPI("/(api)/ride/create", {
         method: "POST",
         headers: {
@@ -70,11 +65,13 @@ const FindRide = () => {
           user_id: data.id,
         }),
       });
-     console.log("Response:", res);
-      router.push({
-        pathname: "/(root)/confirm-ride",
-    
-      });
+      const rideId = res?.ride?.id;
+        if (!rideId) throw new Error("Không lấy được rideId sau khi tạo");
+
+        router.push({
+          pathname: "/(root)/confirm-ride",
+          params: { rideId: rideId.toString() },
+        });
     } catch (err:any) {
       console.error("Lỗi khi tạo ride:", err);
       Alert.alert("Lỗi", err.message || "Không thể tạo chuyến đi");
