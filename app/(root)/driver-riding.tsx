@@ -13,6 +13,8 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapDriver } from '@/components/Map-driver';
 import { icons } from '@/constant';
+import { useLocationStore } from '@/store';
+import { getDistance } from 'geolib';
 export interface Ride {
   id: number;
   user_id: number;
@@ -26,7 +28,7 @@ export interface Ride {
   fare_price: number;
   payment_status: 'unpaid' | 'paid';
   status: 'waiting' | 'ongoing' | 'done';
-  created_at: string; // ISO string format from TIMESTAMP
+  created_at: string; 
 }
 export interface RideWithUser extends Ride {
   user_name: string;
@@ -40,7 +42,35 @@ const DriverRiding = () => {
   const [ride, setRide] = useState<RideWithUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasStartedRide, setHasStartedRide] = useState(false);
+  const [canStart, setCanStart] = useState(false);
+  const [canFinish, setCanFinish] = useState(false);
+  const { userLatitude, userLongitude } = useLocationStore(); 
+  useEffect(() => {
+  if (!ride || !userLatitude || !userLongitude) return;
 
+  const driverCoords = {
+    latitude: userLatitude,
+    longitude: userLongitude,
+  };
+
+  if (!hasStartedRide) {
+    const pickupCoords = {
+      latitude: ride.origin_latitude,
+      longitude: ride.origin_longitude,
+    };
+    const distance = getDistance(driverCoords, pickupCoords);
+    console.log('Distance to pickup:', distance);
+    setCanStart(distance <= 50);
+  } else {
+    const destinationCoords = {
+      latitude: ride.destination_latitude,
+      longitude: ride.destination_longitude,
+    };
+    const distance = getDistance(driverCoords, destinationCoords);
+    console.log('Distance to destination:', distance);
+    setCanFinish(distance <= 70);
+  }
+}, [userLatitude,userLongitude, ride, hasStartedRide]);
   const fetchRideDetails = async () => {
     try {
       const res = await fetch(`/(api)/ride/${rideId}/ride_user`);
@@ -59,6 +89,51 @@ const DriverRiding = () => {
       setLoading(false);
     }
   };
+  const handleCancelRide = () => {
+  if (!ride) {
+    Alert.alert("Cannot cancel", "No ride information available");
+    return;
+  }
+
+  const fee = ride.status === "ongoing" ? 30000 : 0;
+
+  Alert.alert(
+    "Confirm cancellation",
+    fee > 0
+      ? `You will be charged ${fee.toLocaleString()}đ and your rating will be reduced. Are you sure?`
+      : "Are you sure to cancel this ride?",
+    [
+      { text: "No", style: "cancel" },
+      {
+        text: "Yes, Cancel",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const res = await fetch(`/(api)/ride/${rideId}/cancel`, {
+              method: "DELETE",
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+              Alert.alert(
+                "Canceled successfully",
+                fee > 0
+                  ? `You are charged ${fee.toLocaleString()}đ`
+                  : "Ride canceled"
+              );
+              router.replace("/(root)/(tabs)/home");
+            } else {
+              Alert.alert("Error", data.error || "Cannot cancel ride");
+            }
+          } catch (err) {
+            console.error("Cancel ride error:", err);
+            Alert.alert("Error", "Something went wrong when cancelling ride");
+          }
+        },
+      },
+    ]
+  );
+};
 
   const handleStartRide = async () => {
     try {
@@ -150,19 +225,35 @@ const DriverRiding = () => {
 
       {/* Ride action buttons */}
       <View className="bg-white p-5 border-t border-gray-200">
+        <TouchableOpacity
+          onPress={handleCancelRide}
+          className="mt-4 bg-red-600 py-4 rounded-full items-center justify-center shadow-md mb-3"
+        >
+          <Text className="text-white font-bold text-lg">❌ Cancel Ride</Text>
+        </TouchableOpacity>
         {!hasStartedRide ? (
           <TouchableOpacity
             onPress={handleStartRide}
-            className="bg-blue-600 py-4 rounded-full items-center justify-center shadow-md"
+            disabled={!canStart}
+            className={`py-4 rounded-full items-center justify-center shadow-md ${
+              canStart ? 'bg-blue-600' : 'bg-gray-400'
+            }`}
           >
-            <Text className="text-white font-bold text-lg">🚗 Picked Up & Start Ride</Text>
+            <Text className="text-white font-bold text-lg">
+              🚗 Start Ride {canStart ? '' : '(Get closer to pickup)'}
+            </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             onPress={handleFinishRide}
-            className="bg-green-600 py-4 rounded-full items-center justify-center shadow-md"
+            disabled={!canFinish}
+            className={`py-4 rounded-full items-center justify-center shadow-md ${
+              canFinish ? 'bg-green-600' : 'bg-gray-400'
+            }`}
           >
-            <Text className="text-white font-bold text-lg">✅ Finish & Collect Cash</Text>
+            <Text className="text-white font-bold text-lg">
+              ✅ Finish Ride {canFinish ? '' : '(Get closer to destination)'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>

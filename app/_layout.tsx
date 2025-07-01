@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { tokenCache } from '@clerk/clerk-expo/token-cache'
-
+import { useUserLocationTracker } from '@/hooks/useUserLocationTracker';
 
 import { ClerkProvider } from '@clerk/clerk-expo'
 import { Slot } from 'expo-router'
@@ -25,6 +25,7 @@ export default function RootLayout() {
     "Jakarta-Regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
     "Jakarta-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
 });
+   useUserLocationTracker();
 
   useEffect(() => {
     if (loaded) {

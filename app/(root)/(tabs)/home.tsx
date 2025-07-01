@@ -18,31 +18,70 @@ import { useFetch } from '@/lib/fetch'
 export default function Page() {
   const {setUserLocation, setDestinationLocation} = useLocationStore()
   const { user } = useUser()
-  const {data:recentRides,loading} = useFetch(`/(api)/ride/${user?.id}`)
+
   const [hasPermissions, setHasPermissions] = useState(false)
-
   const [role, setRole] = useState<string | null>(null);
+  const [ongoingRide, setOngoingRide] = useState<any>(null);
+  const apiRide = role === 'driver' ? `/(api)/ride/${user?.id}/getRideFromDriver` : `/(api)/ride/${user?.id}/getRideFromUser`
+  const {data:recentRides,loading} = useFetch(apiRide)
+  const [revenueToday, setRevenueToday] = useState<number>(0);
+  const [revenueMonth, setRevenueMonth] = useState<number>(0);
+  useEffect(() => {
+    const fetchRevenue = async () => {
+      try {
+        if (role !== "driver" || !user?.id) return;
 
-useEffect(() => {
-  const fetchUserRole = async () => {
-    try {
-      if (!user?.id) return;
+        const res = await fetch(`/(api)/user/${user.id}/revenueToday`);
+         const data = await res.json();
 
-      const response = await fetch(`/(api)/user/${user.id}/role`);
-      const data = await response.json();
-
-      if (response.ok && data?.role) {
-        setRole(data.role);
-      } else {
-        console.warn("Không tìm thấy role của người dùng.");
+        if (res.ok) {
+          setRevenueToday(data.revenueToday || 0);
+          setRevenueMonth(data.revenueMonth || 0);
+        }
+      } catch (err) {
+        console.error("Lỗi khi lấy revenueToday:", err);
       }
-    } catch (err) {
-      console.error("Lỗi khi fetch role:", err);
-    }
-  };
+    };
 
-  fetchUserRole();
-}, [user?.id]);
+    fetchRevenue();
+  }, [role, user?.id]);
+    useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        if (!user?.id) return;
+
+        const response = await fetch(`/(api)/user/${user.id}/role`);
+        const data = await response.json();
+
+        if (response.ok && data?.role) {
+          setRole(data.role);
+        } else {
+          console.warn("Không tìm thấy role của người dùng.");
+        }
+      } catch (err) {
+        console.error("Lỗi khi fetch role:", err);
+      }
+    };
+
+    fetchUserRole();
+  }, [user?.id]);
+    useEffect(() => {
+      const fetchOngoingRide = async () => {
+        try {
+          if (!user?.id) return;
+          const apiRes = role === 'driver' ? `/(api)/ride/${user?.id}/driverOngoing`: `/(api)/ride/${user?.id}/ongoing`
+  
+           const res = await fetch(apiRes);
+          const data = await res.json();
+          setOngoingRide(data.rideId);
+        } catch (err) {
+          console.error("Lỗi khi kiểm tra ride đang ongoing:", err);
+        }
+      };
+
+      fetchOngoingRide();
+    }, [user?.id]);
+
 
   const handleDestinationPress = (
     location:{
@@ -55,61 +94,6 @@ useEffect(() => {
     router.push("/(root)/find-ride");
     }
 
-  
-
-const fetchAddressFromCoordsWithGoong = async (latitude: number, longitude: number) => {
-  try {
-    const apiKey = process.env.EXPO_PUBLIC_GOONGMAP_API_KEY!; // Thay bằng API key thực của bạn
-    const response = await fetch(
-      `https://rsapi.goong.io/Geocode?latlng=${latitude},${longitude}&api_key=${apiKey}`
-    );
-    const data = await response.json();
-
-    if (data?.results?.length > 0) {
-      return data.results[0].formatted_address;
-    } else {
-      return "Không xác định (Goong)";
-    }
-  } catch (error) {
-    console.error("Lỗi khi reverse geocode với Goong:", error);
-    return "Không xác định";
-  }
-};
-
-
-
-useEffect(() => {
-  (async () => {
-    try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setHasPermissions(false);
-        return;
-      }
-
-      let location = await Location.getCurrentPositionAsync({});
-      if (!location?.coords) return;
-
-      const { latitude, longitude } = location.coords;
-
-      console.log("User location:", latitude, longitude);
-
-     
-      const address = await fetchAddressFromCoordsWithGoong(latitude, longitude);
-
-      setUserLocation({
-        latitude,
-        longitude,
-        address,
-      });
-    } catch (error) {
-      console.error("Lỗi khi lấy vị trí:", error);
-    }
-  })();
-}, []);
-
-
-  
   return (
     <SafeAreaView className='bg-general-500'>
       <FlatList
@@ -133,7 +117,7 @@ useEffect(() => {
                   <Text className='text-sm'>No recent rides found</Text>
               </> 
             ):(
-                <ActivityIndicator size="large" color="#000"/>
+                 <ActivityIndicator size="large" color="#000"/>
             )}
           </View>
         )}
@@ -141,9 +125,17 @@ useEffect(() => {
           <>
             <View className='flex flex-row items-center justify-between my-5'>
               <Text className='text-xl capitalize font-JakartaExtraBold'>Welcome {user?.firstName || user?.emailAddresses[0].emailAddress.split('@')[0]}</Text>
-              <SignOutButton />
+               <SignOutButton />
             </View>
-
+            {role === "driver" && (<>
+              <Text className='text-lg text-green-600 font-semibold mb-2'>
+                Revenue today: {revenueToday.toLocaleString()}đ
+              </Text>
+              <Text className='text-lg text-green-600 font-semibold mb-2'>
+                Revenue this month: {revenueMonth.toLocaleString()}đ
+              </Text>
+              </>
+            )}
              {role === "user" && (
               <GoongTextInput
                 icon={icons.search}
@@ -151,7 +143,23 @@ useEffect(() => {
                 handlePress={handleDestinationPress}
               />
             )}
-
+            {ongoingRide && (
+              <TouchableOpacity
+                onPress={() =>
+                {role === "driver" ? router.push(`/(root)/driver-riding?rideId=${ongoingRide}`):
+                  router.push({
+                    pathname: "/(root)/confirm-ride",
+                    params: { rideId: ongoingRide },
+                  })
+                }
+                }
+                className="bg-green-600 p-4 rounded-xl shadow mb-4"
+              >
+                <Text className="text-white text-lg font-bold">
+                  🚕 Your ride is ongoing, click here to come back
+                </Text>
+              </TouchableOpacity>
+            )}
              <>
               <Text className='text-xl font-JakartaBold mt-5 mb-3'>
                 Your Current Location
@@ -164,7 +172,6 @@ useEffect(() => {
              <Text className='text-xl font-JakartaBold mt-5 mb-3'>
                 Recent Rides
               </Text>
-
           </>
         )}
       />

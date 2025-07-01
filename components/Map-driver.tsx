@@ -1,34 +1,28 @@
 import { icons } from "@/constant";
-import * as Location from "expo-location";
-import { useEffect, useState } from "react";
-import { View, ActivityIndicator, Alert } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT, Polyline } from "react-native-maps";
 import polyline from "@mapbox/polyline";
+import { useLocationStore } from "@/store";
 
 interface MapDriverProps {
   rideId: number;
 }
 
 export const MapDriver = ({ rideId }: MapDriverProps) => {
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [destination, setDestination] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pickupRoute, setPickupRoute] = useState<{ latitude: number; longitude: number }[]>([]);
   const [dropoffRoute, setDropoffRoute] = useState<{ latitude: number; longitude: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCurrentLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission denied", "Ứng dụng cần quyền truy cập vị trí");
-      return;
-    }
-    const location = await Location.getCurrentPositionAsync({});
-    setUserLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
-  };
+  const { userLatitude, userLongitude } = useLocationStore();
+  const prevUserLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
+
+  const userLocation =
+    userLatitude && userLongitude
+      ? { latitude: userLatitude, longitude: userLongitude }
+      : null;
 
   const fetchRide = async () => {
     try {
@@ -46,6 +40,8 @@ export const MapDriver = ({ rideId }: MapDriverProps) => {
       }
     } catch (err) {
       console.error("Lỗi khi fetch ride:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,38 +49,45 @@ export const MapDriver = ({ rideId }: MapDriverProps) => {
     if (!userLocation || !origin || !destination) return;
 
     try {
-      // Route từ tài xế → điểm đón (xanh lá)
+      // Vẽ đường từ tài xế → điểm đón
       const pickupRes = await fetch(
         `https://rsapi.goong.io/Direction?origin=${userLocation.latitude},${userLocation.longitude}&destination=${origin.latitude},${origin.longitude}&vehicle=car&api_key=${process.env.EXPO_PUBLIC_GOONGMAP_API_KEY}`
       );
       const pickupData = await pickupRes.json();
       const pickupDecoded = polyline.decode(pickupData.routes[0].overview_polyline.points);
-      const pickupCoords = pickupDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-      setPickupRoute(pickupCoords);
+      setPickupRoute(pickupDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
 
-      // Route từ điểm đón → điểm đến (xanh dương)
+      // Vẽ đường từ điểm đón → điểm đến
       const dropoffRes = await fetch(
         `https://rsapi.goong.io/Direction?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&vehicle=car&api_key=${process.env.EXPO_PUBLIC_GOONGMAP_API_KEY}`
       );
       const dropoffData = await dropoffRes.json();
       const dropoffDecoded = polyline.decode(dropoffData.routes[0].overview_polyline.points);
-      const dropoffCoords = dropoffDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-      setDropoffRoute(dropoffCoords);
+      setDropoffRoute(dropoffDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
     } catch (err) {
       console.error("Goong API error:", err);
     }
   };
 
   useEffect(() => {
-    (async () => {
-      await fetchCurrentLocation();
-      await fetchRide();
-    })().finally(() => setLoading(false));
+    fetchRide();
   }, [rideId]);
 
+  // Tự động vẽ lại route khi userLocation thay đổi (vị trí tài xế thay đổi)
   useEffect(() => {
-    fetchRoutes();
-  }, [userLocation, origin, destination]);
+    if (!userLocation || !origin || !destination) return;
+
+    const prev = prevUserLocationRef.current;
+    const hasChanged =
+      !prev ||
+      Math.abs(prev.latitude - userLocation.latitude) > 0.0001 ||
+      Math.abs(prev.longitude - userLocation.longitude) > 0.0001;
+
+    if (hasChanged) {
+      prevUserLocationRef.current = userLocation;
+      fetchRoutes();
+    }
+  }, [userLatitude, userLongitude, origin, destination]);
 
   if (loading || !userLocation || !origin || !destination) {
     return (

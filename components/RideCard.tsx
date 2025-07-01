@@ -10,10 +10,12 @@ export default function  RideCard ({
   origin_address,
   destination_address, 
   created_at,ride_time, 
-  driver, 
+  first_name, 
+  last_name,
+  car_seats,
   payment_status,
 }}:{
-  ride:Ride
+  ride:any
 }) {
  
   return (
@@ -66,7 +68,7 @@ export default function  RideCard ({
               Driver
             </Text>
             <Text className="text-md font-JakartaMedium text-gray-500">
-              {driver.first_name} {driver.last_name}
+              {first_name} {last_name}
             </Text>
           </View>
           <View className="flex flex-row items-center w-full justify-between mb-5">
@@ -74,7 +76,7 @@ export default function  RideCard ({
               Car Seats
             </Text>
             <Text className="text-md font-JakartaMedium text-gray-500">
-              {driver.car_seats}
+              {car_seats}
             </Text>
           </View>
           <View className="flex flex-row items-center w-full justify-between mb-5">

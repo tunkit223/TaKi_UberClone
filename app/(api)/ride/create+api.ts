@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     const sql = neon(`${process.env.DATABASE_URL}`);
-    console.log("Before ride")
+  
     const [ride] = await sql`
       INSERT INTO rides (
         origin_address,
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       RETURNING *;
     `;
 
-    console.log("Before booking")
+
     const [booking] = await sql`
       INSERT INTO bookings (
         ride_id,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         'unconfirm'
       ) RETURNING *;
     `;
-    console.log("After booking", booking);
+
     return Response.json({ ride, booking }, { status: 201 });
   } catch (error) {
     console.error("Error inserting ride and booking:", error);
