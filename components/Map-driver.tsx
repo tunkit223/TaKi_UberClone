@@ -1,6 +1,6 @@
 import { icons } from "@/constant";
 import { useEffect, useRef, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { Text, View, ActivityIndicator, TouchableOpacity } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT, Polyline } from "react-native-maps";
 import polyline from "@mapbox/polyline";
 import { useLocationStore } from "@/store";
@@ -14,15 +14,67 @@ export const MapDriver = ({ rideId }: MapDriverProps) => {
   const [destination, setDestination] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pickupRoute, setPickupRoute] = useState<{ latitude: number; longitude: number }[]>([]);
   const [dropoffRoute, setDropoffRoute] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [remainingPickup, setRemainingPickup] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [remainingDropoff, setRemainingDropoff] = useState<{ latitude: number; longitude: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const { userLatitude, userLongitude } = useLocationStore();
+  const { userLatitude, userLongitude, setUserLocation } = useLocationStore();
   const prevUserLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
+
+  const [isSimulating, setIsSimulating] = useState(false);
+  const simulationIndexRef = useRef(0);
+  const simulationRouteRef = useRef<{ latitude: number; longitude: number }[]>([]);
+  const simulationPhaseRef = useRef<"pickup" | "dropoff">("pickup");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const userLocation =
     userLatitude && userLongitude
       ? { latitude: userLatitude, longitude: userLongitude }
       : null;
+
+  const startSimulation = () => {
+    if (!pickupRoute.length || !dropoffRoute.length) return;
+
+    simulationRouteRef.current = [...pickupRoute];
+    simulationPhaseRef.current = "pickup";
+    simulationIndexRef.current = 0;
+    setIsSimulating(true);
+    setRemainingPickup([...pickupRoute]);
+    setRemainingDropoff([...dropoffRoute]);
+
+    intervalRef.current = setInterval(() => {
+      const route = simulationRouteRef.current;
+      const index = simulationIndexRef.current;
+
+      if (index >= route.length) {
+        if (simulationPhaseRef.current === "pickup") {
+          simulationRouteRef.current = [...dropoffRoute];
+          simulationPhaseRef.current = "dropoff";
+          simulationIndexRef.current = 0;
+          return;
+        } else {
+          stopSimulation();
+          return;
+        }
+      }
+
+      const nextCoord = route[index];
+      setUserLocation({ latitude: nextCoord.latitude, longitude: nextCoord.longitude, address: "" });
+
+      if (simulationPhaseRef.current === "pickup") {
+        setRemainingPickup(route.slice(index + 1));
+      } else {
+        setRemainingDropoff(route.slice(index + 1));
+      }
+
+      simulationIndexRef.current += 1;
+    }, 1000);
+  };
+
+  const stopSimulation = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsSimulating(false);
+  };
 
   const fetchRide = async () => {
     try {
@@ -49,23 +101,27 @@ export const MapDriver = ({ rideId }: MapDriverProps) => {
     if (!userLocation || !origin || !destination) return;
 
     try {
-      // Vẽ đường từ tài xế → điểm đón
+      // Route từ tài xế → điểm đón
       const pickupRes = await fetch(
         `https://rsapi.goong.io/Direction?origin=${userLocation.latitude},${userLocation.longitude}&destination=${origin.latitude},${origin.longitude}&vehicle=car&api_key=${process.env.EXPO_PUBLIC_GOONGMAP_API_KEY}`
       );
       const pickupData = await pickupRes.json();
       const pickupDecoded = polyline.decode(pickupData.routes[0].overview_polyline.points);
-      setPickupRoute(pickupDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
+      const fullPickup = pickupDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+      setPickupRoute(fullPickup);
+      setRemainingPickup(fullPickup);
 
-      // Vẽ đường từ điểm đón → điểm đến
+      // Route từ điểm đón → điểm đến
       const dropoffRes = await fetch(
         `https://rsapi.goong.io/Direction?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&vehicle=car&api_key=${process.env.EXPO_PUBLIC_GOONGMAP_API_KEY}`
       );
       const dropoffData = await dropoffRes.json();
       const dropoffDecoded = polyline.decode(dropoffData.routes[0].overview_polyline.points);
-      setDropoffRoute(dropoffDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
+      const fullDropoff = dropoffDecoded.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+      setDropoffRoute(fullDropoff);
+      setRemainingDropoff(fullDropoff);
     } catch (err) {
-      console.error("Goong API error:", err);
+      // console.error("Goong API error:", err);
     }
   };
 
@@ -73,7 +129,6 @@ export const MapDriver = ({ rideId }: MapDriverProps) => {
     fetchRide();
   }, [rideId]);
 
-  // Tự động vẽ lại route khi userLocation thay đổi (vị trí tài xế thay đổi)
   useEffect(() => {
     if (!userLocation || !origin || !destination) return;
 
@@ -105,17 +160,50 @@ export const MapDriver = ({ rideId }: MapDriverProps) => {
   };
 
   return (
-    <MapView
-      provider={PROVIDER_DEFAULT}
-      style={{ width: "100%", height: "100%", borderRadius: 16 }}
-      initialRegion={region}
-      showsUserLocation={true}
-      userInterfaceStyle="light"
-    >
-      <Marker coordinate={origin} title="Điểm đón" image={icons.pin} />
-      <Marker coordinate={destination} title="Điểm đến" image={icons.pin} />
-      <Polyline coordinates={pickupRoute} strokeColor="green" strokeWidth={4} />
-      <Polyline coordinates={dropoffRoute} strokeColor="#0286FF" strokeWidth={4} />
-    </MapView>
+    <>
+      <MapView
+        provider={PROVIDER_DEFAULT}
+        style={{ width: "100%", height: "100%", borderRadius: 16 }}
+        initialRegion={region}
+        showsUserLocation={false}
+        userInterfaceStyle="light"
+      >
+        {/* Marker: Điểm đón và điểm đến */}
+        <Marker coordinate={origin} title="Điểm đón" image={icons.pin} />
+        <Marker coordinate={destination} title="Điểm đến" image={icons.pin} />
+
+        {/* Marker: Tài xế */}
+        {userLocation && (
+          <Marker coordinate={userLocation} image={icons.marker} title="Tài xế" />
+        )}
+
+        {/* Polyline: phần còn lại */}
+        {remainingPickup.length > 1 && (
+          <Polyline coordinates={remainingPickup} strokeColor="green" strokeWidth={4} />
+        )}
+        {remainingDropoff.length > 1 && (
+          <Polyline coordinates={remainingDropoff} strokeColor="#0286FF" strokeWidth={4} />
+        )}
+      </MapView>
+
+      {/* Nút Run/Stop */}
+      <View style={{ position: 'absolute', top: 10, right: 10 }}>
+        {!isSimulating ? (
+          <TouchableOpacity
+            onPress={startSimulation}
+            style={{ backgroundColor: 'green', padding: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Run as Virtual</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={stopSimulation}
+            style={{ backgroundColor: 'red', padding: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Stop</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </>
   );
 };

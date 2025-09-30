@@ -60,7 +60,7 @@ const DriverRiding = () => {
     };
     const distance = getDistance(driverCoords, pickupCoords);
     console.log('Distance to pickup:', distance);
-    setCanStart(distance <= 50);
+    setCanStart(distance <= 100);
   } else {
     const destinationCoords = {
       latitude: ride.destination_latitude,
@@ -68,7 +68,7 @@ const DriverRiding = () => {
     };
     const distance = getDistance(driverCoords, destinationCoords);
     console.log('Distance to destination:', distance);
-    setCanFinish(distance <= 70);
+    setCanFinish(distance <= 150);
   }
 }, [userLatitude,userLongitude, ride, hasStartedRide]);
   const fetchRideDetails = async () => {

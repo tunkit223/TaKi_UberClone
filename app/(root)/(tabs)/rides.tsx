@@ -9,12 +9,14 @@ import RideCard from "@/components/RideCard"
 import BookingCard from "@/components/BookingCard"
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { router } from "expo-router"
+import WalletView from "@/components/WalletView"
+import { StripeProvider } from "@stripe/stripe-react-native"
 const Rides = () => {
   const { user } = useUser();
   const [role, setRole] = useState<string | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
-
+  
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
@@ -38,7 +40,7 @@ const Rides = () => {
       const res = await fetch("/(api)/booking/unconfirm");
       const data = await res.json();
       if (res.ok) {
-        setBookings(
+         setBookings(
           data.sort(
             (a: any, b: any) =>
               new Date(b.ride.created_at).getTime() -
@@ -75,17 +77,18 @@ const Rides = () => {
 
   return (
     <SafeAreaView className="bg-general-500 flex-1">
+       
       {role === "user" && (
-        <FlatList
-          data={[]}
-          renderItem={() => null}
-          ListEmptyComponent={() => (
-            <View className="items-center justify-center p-10">
-              <Image source={images.noResult} className="w-40 h-40" resizeMode="contain" />
-              <Text className="text-sm mt-3">No recent rides found</Text>
-            </View>
-          )}
-        />
+        <StripeProvider
+          publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!}
+          merchantIdentifier="merchant.com.yourapp"
+          urlScheme="yourapp" // optional but required for 3D Secure
+        >
+          <WalletView
+            userId={user?.id}
+            email={user?.primaryEmailAddress?.emailAddress || ""}
+          />
+        </StripeProvider>
       )}
 
       {role === "driver" && (

@@ -22,7 +22,13 @@ export async function POST(request:Request) {
         VALUES (${response[0].id}, NULL, 4, 5.0)
       `;
     }
-  
+     const wallet = await sql`
+      INSERT INTO wallet (user_id, money)
+      VALUES (${response[0].id}, 0)
+    `;
+    if(!wallet) {
+      throw new Error('Failed to create wallet');
+    }
   return new Response(JSON.stringify({data: response}),{status:201})
   
     

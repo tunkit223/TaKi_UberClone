@@ -18,6 +18,19 @@ export async function PUT(request: Request, { id }: { id: string }) {
       SET status = 'done',  payment_status = 'paid'
       WHERE id = ${rideId}
     `;
+    const ride = await sql`SeLECT * FROM rides WHERE id = ${rideId}`;
+    await sql`
+        UPDATE wallet
+        SET money = money - ${ride[0].fare_price}
+        WHERE user_id = ${ride[0].user_id}
+      `;
+    const wallet= await sql`
+      SELECT id FROM wallet WHERE user_id = ${ride[0].user_id}
+    `;
+      const walletHistory =  await sql`
+      INSERT INTO wallet_history (wallet_id, change_amount)
+      VALUES (${wallet[0].id}, ${-ride[0].fare_price})
+    `;
     return Response.json({
       rideId: rideId,
       message: "Booking confirmed successfully",

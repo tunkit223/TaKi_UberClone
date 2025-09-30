@@ -48,7 +48,7 @@ const FindRide = () => {
 
       const res =  await fetchAPI("/(api)/ride/create", {
         method: "POST",
-        headers: {
+         headers: {
           "Content-Type": "application/json",
         },
          body: JSON.stringify({
@@ -65,8 +65,10 @@ const FindRide = () => {
           user_id: data.id,
         }),
       });
+
+    
       const rideId = res?.ride?.id;
-        if (!rideId) throw new Error("Không lấy được rideId sau khi tạo");
+         if (!rideId) throw new Error("Không lấy được rideId sau khi tạo");
 
         router.push({
           pathname: "/(root)/confirm-ride",
@@ -74,7 +76,7 @@ const FindRide = () => {
         });
     } catch (err:any) {
       console.error("Lỗi khi tạo ride:", err);
-      Alert.alert("Lỗi", err.message || "Không thể tạo chuyến đi");
+      // Alert.alert("Lỗi", err.message || "Không thể tạo chuyến đi");
     }
   };
 

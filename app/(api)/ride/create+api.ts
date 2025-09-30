@@ -34,7 +34,38 @@ export async function POST(request: Request) {
     }
 
     const sql = neon(`${process.env.DATABASE_URL}`);
+     const existingRides = await sql`
+      SELECT id FROM rides
+      WHERE user_id = ${user_id}
+        AND status IN ('waiting', 'ongoing')
+        AND created_at >= CURRENT_DATE
+        AND created_at < CURRENT_DATE + INTERVAL '1 day'
+    `;
+    
+    if (existingRides.length > 0) {
+      return Response.json(
+        { error: "You already have a ride in progress. Please complete it first." },
+        { status: 403 }
+      );
+    }
+   
+     const [wallet] = await sql`
+      SELECT money FROM wallet WHERE user_id = ${user_id}
+    `;
+
+    if (!wallet) {
+      return Response.json({ error: "Wallet not found" }, { status: 404 });
+    }
   
+    if (wallet.money < fare_price) {
+      
+      return Response.json(
+        { error: "Insufficient wallet balance", current_balance: wallet.money },
+        { status: 402 } // 402 Payment Required
+      );
+    }
+
+ 
     const [ride] = await sql`
       INSERT INTO rides (
         origin_address,
@@ -74,10 +105,16 @@ export async function POST(request: Request) {
         'unconfirm'
       ) RETURNING *;
     `;
-
+    console.log("imhere done")
     return Response.json({ ride, booking }, { status: 201 });
-  } catch (error) {
-    console.error("Error inserting ride and booking:", error);
-    return Response.json({ error: "Internal Server Error" }, { status: 500 });
-  }
+  } catch (error: any) {
+  console.error("Error inserting ride and booking:", error);
+  return Response.json(
+    {
+      error: error?.message || "Internal Server Error",
+      detail: error, // có thể xoá dòng này ở môi trường production
+    },
+    { status: 500 }
+  );
+}
 }

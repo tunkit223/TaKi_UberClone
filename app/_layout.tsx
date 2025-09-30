@@ -10,7 +10,8 @@ import { useUserLocationTracker } from '@/hooks/useUserLocationTracker';
 
 import { ClerkProvider } from '@clerk/clerk-expo'
 import { Slot } from 'expo-router'
-
+import { StripeProvider } from '@stripe/stripe-react-native';
+import { useLocationStore } from '@/store';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,10 +27,17 @@ export default function RootLayout() {
     "Jakarta-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
 });
    useUserLocationTracker();
+  // const { setUserLocation } = useLocationStore();
 
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
+    //    const fixedLocation = {
+    //   latitude: 10.870012,
+    //   longitude: 106.803400,
+    //   address: "Khu phố 6, phường Linh Trung, TP. Thủ Đức, TP. Hồ Chí Minh, Việt Nam"
+    // };
+    // setUserLocation(fixedLocation);
     }
   }, [loaded]);
 
@@ -38,16 +46,16 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider 
-    // publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY} 
-    // tokenCache={tokenCache}
+     <ClerkProvider
+      // publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      // tokenCache={tokenCache}
     >
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(root)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(root)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
     </ClerkProvider>
   );
 }

@@ -94,6 +94,48 @@ export default function Page() {
     router.push("/(root)/find-ride");
     }
 
+    if (role === 'admin') {
+  return (
+    <SafeAreaView className="bg-general-500 flex-1 px-5 pt-5">
+      <Text className="text-2xl font-JakartaBold mb-4">
+        Welcome, Admin {user?.firstName || user?.emailAddresses[0].emailAddress.split('@')[0]}
+      </Text>
+
+      {/* Tổng quan */}
+      <View className="mb-5 bg-white p-4 rounded-xl shadow">
+        <Text className="text-lg font-JakartaBold mb-2">System Overview</Text>
+        <Text>Total Users: 3</Text>
+        <Text>Total Drivers: 1</Text>
+        <Text>Revenue Today: 50000 USD</Text>
+        <Text>Revenue This Month: 1350000 USD</Text>
+      </View>
+
+      {/* Điều hướng nhanh */}
+      <View className="mb-5">
+        <TouchableOpacity
+          className="bg-blue-600 p-4 rounded-xl mb-3"
+          onPress={() => router.push('/')}
+        >
+          <Text className="text-white font-bold text-center">👤 Manage Users</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="bg-orange-500 p-4 rounded-xl mb-3"
+          onPress={() => router.push('/')}
+        >
+          <Text className="text-white font-bold text-center">🚗 Manage Drivers</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="bg-green-600 p-4 rounded-xl"
+          onPress={() => router.push('/')}
+        >
+          <Text className="text-white font-bold text-center">📋 View All Rides</Text>
+        </TouchableOpacity>
+      </View>
+
+      <SignOutButton />
+    </SafeAreaView>
+  );
+}
   return (
     <SafeAreaView className='bg-general-500'>
       <FlatList
@@ -160,6 +202,7 @@ export default function Page() {
                 </Text>
               </TouchableOpacity>
             )}
+            
              <>
               <Text className='text-xl font-JakartaBold mt-5 mb-3'>
                 Your Current Location

@@ -66,7 +66,7 @@ export const Map = () => {
           const coords = decoded.map(([lat, lng]: [number, number]) => ({ latitude: lat, longitude: lng }));
           setRouteCoords(coords);
         } catch (err) {
-          console.error('Goong API error:', err);
+          // console.error('Goong API error:', err);
         }
       }
       fetchGoongRoute();
